@@ -29,6 +29,23 @@ static func set_state(state: Dictionary):
 
 static func _static_init() -> void:
 	if Engine.is_editor_hint():
+		var editor_interface = Engine.get_singleton("EditorInterface")
+		var bc: Node = editor_interface.get_base_control()
+		var tree := bc.get_tree()
+		if not tree.node_added.is_connected(_node_added):
+			tree.node_added.connect(_node_added)
+		var est := bc.find_child("*EditorSceneTabs*", true, false)
+		var tb: TabBar = est.find_child("*TabBar*", true, false)
+		if not tb.tab_changed.is_connected(_tab_changed):
+			tb.tab_changed.connect(_tab_changed)
+		_refresh()
+
+static func _tab_changed(tab: Variant):
+	_refresh()
+
+static func _node_added(node: Node):
+	var editor_interface = Engine.get_singleton("EditorInterface")
+	if node == editor_interface.get_edited_scene_root():
 		_refresh()
 
 static func _refresh():
@@ -37,6 +54,10 @@ static func _refresh():
 	var menu: Node = editor_interface.get_base_control().find_child("*MenuBar*", true, false)
 	var opened_scenes = editor_interface.get_open_scenes()
 	var scene: Node = editor_interface.get_edited_scene_root()
+	
+	# When scene closes, update the dropdown checks.
+	if scene and not scene.tree_exited.is_connected(_refresh.call_deferred):
+		scene.tree_exited.connect(_refresh.call_deferred)
 	
 	# Remove items.
 	for child in menu.get_children():
@@ -80,7 +101,7 @@ static func _refresh():
 	
 	popup_groups.id_pressed.connect(_pressed_group.bind(popup_groups))
 	popup.add_submenu_node_item("Current scene...", popup_groups, 0)
-	popup.set_item_disabled(0, scene == null)
+	popup.set_item_disabled(0, not scene)
 	
 	# id 0 = Current scene...
 	var id := 1
@@ -99,11 +120,11 @@ static func _refresh():
 			popup.add_item(scene_info.name, id)
 			var index := popup.get_item_index(id)
 			if is_current:
-				popup.set_item_tooltip(index, scene_info.path + "\n(Currently selected)")
+				popup.set_item_tooltip(index, scene_info.path + "\n(Loaded & selected)")
 			elif not is_opened:
 				popup.set_item_tooltip(index, scene_info.path + "\n(Not loaded)")
 			else:
-				popup.set_item_tooltip(index, scene_info.path)
+				popup.set_item_tooltip(index, scene_info.path + "\n(Loaded)")
 			popup.set_item_icon(index, base_control.get_theme_icon(scene_info.clss, "EditorIcons"))
 			popup.set_item_as_checkable(index, true)
 			popup.set_item_checked(index, is_opened)
@@ -113,11 +134,13 @@ static func _refresh():
 			id += 1
 
 static func _pressed_group(id: int, popup_groups: PopupMenu):
-	var node: Node = EditorInterface.get_edited_scene_root()
-	if not node:
+	var editor_interface = Engine.get_singleton("EditorInterface")
+	var scene: Node = editor_interface.get_edited_scene_root()
+	
+	if not scene:
 		return
 	
-	var path := node.scene_file_path
+	var path := scene.scene_file_path
 	
 	if id == 0:
 		# Remove.
@@ -129,9 +152,9 @@ static func _pressed_group(id: int, popup_groups: PopupMenu):
 		# Add to group.
 		var state := get_state()
 		state[path] = {
-			name = node.name,
+			name = scene.name,
 			path = path,
-			clss = node.get_class(),
+			clss = scene.get_class(),
 			group = GROUPS[id-1],
 		}
 		set_state(state)
@@ -160,10 +183,5 @@ static func _pressed(id: int, popup: PopupMenu):
 		if tb.get_tab_title(i) == tab_title:
 			tb.current_tab = i
 			break
-	
-	# When scene closes, update the dropdown checks.
-	var scene: Node = editor_interface.get_edited_scene_root()
-	if not scene.tree_exited.is_connected(_refresh.call_deferred):
-		scene.tree_exited.connect(_refresh.call_deferred)
 	
 	_refresh()

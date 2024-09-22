@@ -19,6 +19,8 @@ To remove a scene:
 If it doesn't show up, either open `favorite_scenes.gd` and hit save, or reload the project.
 
 # Changes
+- v2.1
+	- Fixed list not updating on first open scene.
 - v2.0
 	- Node name & class icon are used in drop down.
 	- Assign scenes to groups.
