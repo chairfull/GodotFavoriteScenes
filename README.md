@@ -3,7 +3,7 @@
 
 Creates a `Scenes` dropdown in the top menu bar, populated with scenes you've added to Favorites.
 
-![](preview.png)
+![](readme/preview.png)
 
 - `Right Click` on a scene.
 - Selected `Add to Favorites`.
