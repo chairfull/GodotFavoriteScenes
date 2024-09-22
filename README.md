@@ -1,12 +1,20 @@
 # Favorite Scenes
 `v2.0`
 
-Creates a `Scenes` dropdown in the top menu bar, populated with scenes you've added to Favorites.
+Adds a `Scenes` dropdown for quickly loading & selecting scenes.
 
 ![](readme/preview.png)
 
-- `Right Click` on a scene.
-- Selected `Add to Favorites`.
+To add a scene to favorites:
+
+- Open the scene in editor.
+- Select `Scenes\Current scene...`.
+- Select a group.
+
+To remove a scene:
+
+- Open the scene in editor.
+- Select `Scenes\Current scene...\Remove from favorites`
 
 If it doesn't show up, either open `favorite_scenes.gd` and hit save, or reload the project.
 

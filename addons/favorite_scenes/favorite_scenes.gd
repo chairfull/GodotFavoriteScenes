@@ -63,9 +63,10 @@ static func _refresh():
 	popup.id_pressed.connect(_pressed.bind(popup))
 	
 	var popup_groups := PopupMenu.new()
-	popup_groups.add_item("Remove From Favorites", 0)
+	popup_groups.add_item("Remove from favorites", 0)
+	popup_groups.set_item_disabled(0, not scene or not scene.scene_file_path in state)
 	popup_groups.set_item_tooltip(0, "Can't undo.")
-	popup_groups.add_separator("Add To Group")
+	popup_groups.add_separator("Add to group")
 	for i in len(GROUPS):
 		popup_groups.add_radio_check_item(GROUPS[i], 1+i)
 		popup_groups.set_item_tooltip(i+2, "%s Members" % [len(grouped.get(GROUPS[i], []))])
@@ -98,9 +99,9 @@ static func _refresh():
 			popup.add_item(scene_info.name, id)
 			var index := popup.get_item_index(id)
 			if is_current:
-				popup.set_item_tooltip(index, scene_info.path + "\n(Currently Selected)")
+				popup.set_item_tooltip(index, scene_info.path + "\n(Currently selected)")
 			elif not is_opened:
-				popup.set_item_tooltip(index, scene_info.path + "\n(Not Loaded)")
+				popup.set_item_tooltip(index, scene_info.path + "\n(Not loaded)")
 			else:
 				popup.set_item_tooltip(index, scene_info.path)
 			popup.set_item_icon(index, base_control.get_theme_icon(scene_info.clss, "EditorIcons"))
