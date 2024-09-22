@@ -6,3 +6,5 @@ ignore/
 icon.svg
 icon.svg.import
 project.godot
+
+*.zip
