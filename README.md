@@ -1,5 +1,5 @@
 # Favorite Scenes
-`v2.0`
+`v2.2`
 
 Adds a `Scenes` dropdown for quickly loading & selecting scenes.
 
@@ -19,6 +19,9 @@ To remove a scene:
 If it doesn't show up, either open `favorite_scenes.gd` and hit save, or reload the project.
 
 # Changes
+- v2.2
+	- Main Scene automatically added to top of list.
+	- Scenes are removed from the dropdown if they no longer exist in project.
 - v2.1
 	- Fixed list not updating on first open scene.
 - v2.0
