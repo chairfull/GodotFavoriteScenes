@@ -1,5 +1,5 @@
 @tool
-extends RefCounted
+extends EditorPlugin
 
 const PATH := "res://.godot/.favorite_scenes.json"
 const GROUPS: PackedStringArray = [
@@ -31,43 +31,50 @@ static func set_state(state: Dictionary):
 	var json := JSON.stringify(state, "\t", false)
 	f.store_string(json)
 
-static func _static_init() -> void:
-	if Engine.is_editor_hint():
-		var editor_interface = Engine.get_singleton("EditorInterface")
-		var bc: Node = editor_interface.get_base_control()
-		var tree := bc.get_tree()
-		if not tree.node_added.is_connected(_node_added):
-			tree.node_added.connect(_node_added)
-		var est := bc.find_child("*EditorSceneTabs*", true, false)
-		var tb: TabBar = est.find_child("*TabBar*", true, false)
-		if not tb.tab_changed.is_connected(_tab_changed):
-			tb.tab_changed.connect(_tab_changed)
-		_refresh()
-
-static func _tab_changed(tab: Variant):
+func _enter_tree() -> void:
+	#var editor_interface = Engine.get_singleton("EditorInterface")
+	var bc: Node = EditorInterface.get_base_control()
+	var tree := bc.get_tree()
+	if not tree.node_added.is_connected(_node_added):
+		tree.node_added.connect(_node_added)
+	var est := bc.find_child("*EditorSceneTabs*", true, false)
+	var tb: TabBar = est.find_child("*TabBar*", true, false)
+	if not tb.tab_changed.is_connected(_tab_changed):
+		tb.tab_changed.connect(_tab_changed)
 	_refresh()
 
-static func _node_added(node: Node):
-	var editor_interface = Engine.get_singleton("EditorInterface")
-	if node == editor_interface.get_edited_scene_root():
+func _exit_tree() -> void:
+	_remove_drop_down()
+
+func _tab_changed(tab: Variant):
+	_refresh()
+
+func _node_added(node: Node):
+	if node == EditorInterface.get_edited_scene_root():
 		_refresh()
 
-static func _refresh():
+func _get_menu_bar() -> Node:
+	return EditorInterface.get_base_control().find_child("*MenuBar*", true, false)
+
+func _remove_drop_down():
+	var menu := _get_menu_bar()
+	for child in menu.get_children():
+		if "@PopupMenu@" in child.name or child.is_in_group(&"favorite_scenes"):
+			menu.remove_child(child)
+			child.queue_free()
+
+func _refresh():
 	# Find MenuBar.
-	var editor_interface = Engine.get_singleton("EditorInterface")
-	var menu: Node = editor_interface.get_base_control().find_child("*MenuBar*", true, false)
-	var opened_scenes = editor_interface.get_open_scenes()
-	var scene: Node = editor_interface.get_edited_scene_root()
+	var menu := _get_menu_bar()
+	var opened_scenes = EditorInterface.get_open_scenes()
+	var scene: Node = EditorInterface.get_edited_scene_root()
 	
 	# When scene closes, update the dropdown checks.
 	if scene and not scene.tree_exited.is_connected(_refresh.call_deferred):
 		scene.tree_exited.connect(_refresh.call_deferred)
 	
 	# Remove items.
-	for child in menu.get_children():
-		if "@PopupMenu@" in child.name or child.is_in_group(&"favorite_scenes"):
-			menu.remove_child(child)
-			child.queue_free()
+	_remove_drop_down()
 	
 	# Load state.
 	var state := get_state()
@@ -132,7 +139,7 @@ static func _refresh():
 	id += 1
 	
 	# id 0 = Current scene...
-	var base_control = editor_interface.get_base_control()
+	var base_control = EditorInterface.get_base_control()
 	for i in len(GROUPS):
 		var group := GROUPS[i]
 		# Skip empty groups.
@@ -190,9 +197,8 @@ static func _refresh():
 			scene_info_list.append(scene_info)
 			id += 1
 
-static func _pressed_group(id: int, popup_groups: PopupMenu):
-	var editor_interface = Engine.get_singleton("EditorInterface")
-	var scene: Node = editor_interface.get_edited_scene_root()
+func _pressed_group(id: int, popup_groups: PopupMenu):
+	var scene: Node = EditorInterface.get_edited_scene_root()
 	
 	if not scene:
 		return
@@ -222,7 +228,7 @@ static func _pressed_group(id: int, popup_groups: PopupMenu):
 	
 	_refresh()
 
-static func _pressed(id: int, popup: PopupMenu):
+func _pressed(id: int, popup: PopupMenu):
 	if id == 0:
 		# Shouldn't happen?
 		return
@@ -256,7 +262,7 @@ static func _pressed(id: int, popup: PopupMenu):
 	
 	_refresh()
 
-static func _swap_items(scene_info: Dictionary, prev: bool = true):
+func _swap_items(scene_info: Dictionary, prev: bool = true):
 	var state := get_state()
 	var grouped := {}
 	for path in state:
@@ -278,19 +284,17 @@ static func _swap_items(scene_info: Dictionary, prev: bool = true):
 	set_state(state)
 	_refresh()
 
-static func _pressed_scene_submenu(submenu_id: int, scene_info: Dictionary):
-	var editor_interface = Engine.get_singleton("EditorInterface")
-	
+func _pressed_scene_submenu(submenu_id: int, scene_info: Dictionary):	
 	match submenu_id % 1000:
 		1: # Open Scene
 			if FileAccess.file_exists(scene_info.path):
-				editor_interface.open_scene_from_path(scene_info.path)
+				EditorInterface.open_scene_from_path(scene_info.path)
 			else:
 				push_error("Scene no longer exists at: %s" % [scene_info.path])
 		
 		2: # Run Scene
 			if FileAccess.file_exists(scene_info.path):
-				editor_interface.play_custom_scene(scene_info.path)
+				EditorInterface.play_custom_scene(scene_info.path)
 			else:
 				push_error("Scene no longer exists at: %s" % [scene_info.path])
 		
