@@ -138,25 +138,55 @@ static func _refresh():
 		# Skip empty groups.
 		if not group in grouped:
 			continue
-		# Group name.
 		popup.add_separator(group)
-		# Group scenes.
-		for scene_info: Dictionary in grouped[group]:
+		var group_items = grouped[group]
+		for group_index in group_items.size():
+			var scene_info: Dictionary = group_items[group_index]
+			scene_info.current_group = group
+			scene_info.current_index = group_index
+
 			var is_current: bool = scene and scene_info.path == scene.scene_file_path
 			var is_opened: bool = scene_info.path in opened_scenes
-			popup.add_item(scene_info.name, id)
+			var scene_submenu := PopupMenu.new()
+			popup.add_child(scene_submenu)
+			
+			popup.add_submenu_item(scene_info.name, scene_submenu.name, id)
 			var index := popup.get_item_index(id)
-			if is_current:
-				popup.set_item_tooltip(index, scene_info.path + "\n(Loaded & Current Scene)")
-			elif not is_opened:
-				popup.set_item_tooltip(index, scene_info.path + "\n(Not Loaded)")
-			else:
-				popup.set_item_tooltip(index, scene_info.path + "\n(Loaded)")
-			popup.set_item_icon(index, base_control.get_theme_icon(scene_info.clss, "EditorIcons"))
 			popup.set_item_as_checkable(index, true)
 			popup.set_item_checked(index, is_opened)
-			popup.set_item_disabled(index, is_current)
+			popup.set_item_icon(index, base_control.get_theme_icon(scene_info.clss, "EditorIcons"))
 			popup.set_item_icon_modulate(index, Color.GREEN_YELLOW if is_current else Color.WHITE)
+			
+			scene_submenu.add_item("Open Scene", id * 1000 + 1)
+			scene_submenu.set_item_icon(0, base_control.get_theme_icon("Load", "EditorIcons"))
+
+			scene_submenu.add_item("Run Scene", id * 1000 + 2)
+			scene_submenu.set_item_icon(1, base_control.get_theme_icon("PlayScene", "EditorIcons"))
+
+			scene_submenu.add_item("Remove from fav", id * 1000 + 3)
+			scene_submenu.set_item_icon(2, base_control.get_theme_icon("Remove", "EditorIcons"))
+			scene_submenu.set_item_icon_modulate(2, Color.ORANGE_RED)
+			
+			if group_index > 0:
+				scene_submenu.add_icon_item(
+					base_control.get_theme_icon("ArrowUp", "EditorIcons"),
+					"Move Up",
+					id * 1000 + 4
+				)
+
+			if group_index < group_items.size() - 1:
+				scene_submenu.add_icon_item(
+					base_control.get_theme_icon("ArrowDown", "EditorIcons"),
+					"Move Down",
+					id * 1000 + 5
+				)
+
+			scene_submenu.set_item_disabled(0, is_current)
+			if is_current:
+				scene_submenu.set_item_tooltip(0, "Already opened as current scene")
+			
+			scene_submenu.id_pressed.connect(_pressed_scene_submenu.bind(scene_info))
+			
 			scene_info_list.append(scene_info)
 			id += 1
 
@@ -225,3 +255,53 @@ static func _pressed(id: int, popup: PopupMenu):
 				break
 	
 	_refresh()
+
+static func _swap_items(scene_info: Dictionary, prev: bool = true):
+	var state := get_state()
+	var grouped := {}
+	for path in state:
+		var info: Dictionary = state[path]
+		if not info.group in grouped:
+			grouped[info.group] = []
+		grouped[info.group].append(info)
+	
+	var current_group = grouped[scene_info.current_group]
+	var current_index = scene_info.current_index
+	var temp = current_group[current_index]
+	current_group[current_index] = current_group[current_index + (1 if prev == false else -1)]
+	current_group[current_index + (1 if prev == false else -1)] = temp
+	state.clear()
+	for g in grouped:
+		for info in grouped[g]:
+			state[info.path] = info
+	
+	set_state(state)
+	_refresh()
+
+static func _pressed_scene_submenu(submenu_id: int, scene_info: Dictionary):
+	var editor_interface = Engine.get_singleton("EditorInterface")
+	
+	match submenu_id % 1000:
+		1: # Open Scene
+			if FileAccess.file_exists(scene_info.path):
+				editor_interface.open_scene_from_path(scene_info.path)
+			else:
+				push_error("Scene no longer exists at: %s" % [scene_info.path])
+		
+		2: # Run Scene
+			if FileAccess.file_exists(scene_info.path):
+				editor_interface.play_custom_scene(scene_info.path)
+			else:
+				push_error("Scene no longer exists at: %s" % [scene_info.path])
+		
+		3: # Delete Scene
+			var state := get_state()
+			state.erase(scene_info.path)
+			set_state(state)
+			_refresh()
+
+		4: # Move Up
+			_swap_items(scene_info, true)
+		
+		5: # Move Down
+			_swap_items(scene_info, false)
